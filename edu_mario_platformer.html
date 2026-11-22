@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Edu Mario — Platformer Pembelajaran</title>
+<style>
+:root{--bg:#101827;--panel:#17243a;--gold:#ffd34e;--green:#55d66b;--cream:#fff4d5;--red:#ef5350}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:#fff;font-family:system-ui,Segoe UI,Arial,sans-serif}
+.wrap{max-width:1000px;margin:auto;padding:16px}
+h1,h2{margin:.2em 0 .6em}
+h1{font-size:clamp(22px,4vw,36px);color:var(--gold)}
+.subtitle{color:#b9c8db;margin-bottom:16px}
+.panel{background:var(--panel);border:2px solid #30435e;border-radius:14px;padding:16px;margin:12px 0}
+label{display:block;font-weight:700;margin:10px 0 6px}
+input,textarea,select{width:100%;padding:11px;border-radius:8px;border:1px solid #526780;background:#0d1726;color:#fff;font:inherit}
+textarea{min-height:100px;resize:vertical}
+button{border:0;border-radius:9px;padding:11px 15px;font-weight:800;font:inherit;cursor:pointer;background:var(--gold);color:#202434}
+button.secondary{background:#38516f;color:white}
+button.danger{background:#ef5350;color:#fff}
+button:disabled{opacity:.45;cursor:not-allowed}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.row>*{flex:1}
+.tabs{display:flex;gap:8px;margin:12px 0}
+.tab{background:#30435e;color:#fff}.tab.active{background:var(--gold);color:#202434}
+.qeditor{border:1px solid #405672;padding:12px;border-radius:10px;margin:12px 0;background:#101b2c}
+.qeditor textarea{min-height:68px}
+.optrow{display:grid;grid-template-columns:40px 1fr;gap:8px;margin:6px 0}
+small{color:#b9c8db}
+#gameArea{display:none}
+canvas{display:block;width:100%;background:#78c9f3;border:4px solid #fff;border-radius:10px;image-rendering:pixelated;touch-action:none}
+.hud{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin:8px 0;color:var(--gold);font-weight:800}
+.touch{display:flex;justify-content:space-between;gap:12px;margin-top:10px;user-select:none}
+.touchgroup{display:flex;gap:8px}
+.touch button{min-width:64px;min-height:54px;background:#38516f;color:white;font-size:22px;touch-action:none}
+.modal{position:fixed;inset:0;background:#000a;display:none;align-items:center;justify-content:center;padding:14px;z-index:10}
+.modalbox{width:min(620px,100%);max-height:90vh;overflow:auto;background:#18263c;border:4px solid var(--gold);border-radius:12px;padding:18px;box-shadow:0 0 0 5px #000}
+.modalbox h2{color:var(--gold)}
+.answer{display:block;width:100%;margin:8px 0;text-align:left;background:#314966;color:white;border:2px solid #55718f}
+.answer:hover{background:#496789}
+.feedback{padding:12px;border-radius:8px;margin:10px 0;background:#263a52}
+#certificate{display:none}
+@media(max-width:600px){.wrap{padding:10px}.panel{padding:12px}.touch button{min-width:58px}.hud{font-size:14px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+<h1>🍄 Edu Mario: Petualangan Belajar</h1>
+<div class="subtitle">Platformer retro 2D • Belajar sambil bermain • HTML Canvas</div>
+</header>
+<section id="setup" class="panel">
+<h2>🎓 Pengaturan Guru</h2>
+<label>Judul Materi / Mata Pelajaran</label>
+<input id="subject" value="IPAS — Ekosistem">
+<label>Tujuan Pembelajaran</label>
+<textarea id="objective">Siswa mampu memahami konsep dasar ekosistem dan rantai makanan.</textarea>
+<div class="row" style="margin-top:12px">
+<button id="generate">✨ Buat Soal Otomatis dari Tujuan Pembelajaran</button>
+<button class="secondary" id="soundSetup">🔊 Suara: Aktif</button>
+</div>
+<div class="tabs">
+<button class="tab active" id="tabAuto">Soal Otomatis</button>
+<button class="tab" id="tabManual">Edit Soal Manual</button>
+</div>
+<div id="autoPanel">
+<p><small>Generator cadangan offline membuat 5 soal berdasarkan kata kunci Tujuan Pembelajaran. Soal dapat diedit sebelum game dimulai.</small></p>
+<div id="questionsPreview"></div>
+</div>
+<div id="manualPanel" style="display:none">
+<div id="editQuestions"></div>
+<button class="secondary" id="addQuestion">＋ Tambah Soal</button>
+</div>
+<button id="start" style="width:100%;margin-top:16px">💾 Simpan & Mulai Game</button>
+</section>
+
+<section id="gameArea" class="panel">
+<div class="hud"><span id="hudSubject"></span><span id="score">⭐ Skor: 0</span><span id="progress">📘 Kuis: 0/0</span><button id="mute">🔊 Mute</button><button id="restart" class="secondary">↻ Ulang</button></div>
+<div id="mission" class="feedback"></div>
+<canvas id="game" width="960" height="540"></canvas>
+<div class="touch">
+<div class="touchgroup"><button id="left">◀</button><button id="right">▶</button></div>
+<div class="touchgroup"><button id="jump">⬆</button></div>
+</div>
+<small>Keyboard: ← → / A D bergerak • Space / ↑ / W melompat</small>
+</section>
+<section id="certificate" class="panel">
+<h2>🏆 Sertifikat Petualangan Belajar</h2>
+<div id="certText"></div>
+<button id="playAgain">Main Lagi</button>
+</section>
+</div>
+
+<div class="modal" id="quizModal">
+<div class="modalbox">
+<h2>❓ Blok Edukatif!</h2>
+<div id="quizMeta"></div>
+<h3 id="quizQuestion"></h3>
+<div id="quizAnswers"></div>
+<div id="quizFeedback"></div>
+<button id="continue" style="display:none;width:100%">Lanjutkan Petualangan ▶</button>
+</div>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+let questions=[], score=0, answered=0, correct=0, soundOn=true, muted=false, gameStarted=false, quizPaused=false;
+let keys={left:false,right:false,jump:false}, player, camera=0, platforms=[], qblocks=[], coins=[], enemies=[], pipes=[], finishX=0, particles=[], lastTime=0;
+const canvas=$('game'), ctx=canvas.getContext('2d');
+const WORLD=3000, GROUND=470;
+const defaultObjective='Siswa mampu memahami konsep dasar ekosistem dan rantai makanan.';
+function keywords(text){return text.toLowerCase().split(/[^a-z0-9\u00C0-\u024F\u1E00-\u1EFF]+/).filter(x=>x.length>3)}
+function generateQuestions(){
+ const obj=$('objective').value.trim()||defaultObjective, subject=$('subject').value.trim()||'Materi';
+ const kw=keywords(obj), topic=kw.find(x=>['ekosistem','rantai','makanan','energi','air','hewan','tumbuhan','bilangan','pecahan','sejarah','budaya','planet','sistem','organ','lingkungan','kebersihan'].includes(x))||kw[0]||'materi';
+ let bank;
+ if(/ekosistem|rantai|makanan|tumbuhan|hewan|lingkungan/.test(obj.toLowerCase())){
+ bank=[
+ {q:'Apa yang dimaksud dengan ekosistem?',a:['Hubungan makhluk hidup dengan lingkungannya','Kumpulan benda mati saja','Tempat bermain manusia'],c:0,e:'Ekosistem terdiri dari makhluk hidup dan lingkungan yang saling berinteraksi.'},
+ {q:'Dalam rantai makanan, tumbuhan biasanya berperan sebagai…',a:['Konsumen','Produsen','Pengurai'],c:1,e:'Tumbuhan membuat makanan sendiri melalui fotosintesis sehingga menjadi produsen.'},
+ {q:'Hewan yang memakan tumbuhan disebut…',a:['Herbivora','Karnivora','Omnivora'],c:0,e:'Herbivora adalah hewan pemakan tumbuhan.'},
+ {q:'Apa yang dapat terjadi jika salah satu makhluk hidup dalam rantai makanan berkurang?',a:['Keseimbangan ekosistem dapat terganggu','Semua makhluk hidup bertambah','Tidak ada perubahan sama sekali'],c:0,e:'Setiap makhluk hidup berperan dalam menjaga keseimbangan ekosistem.'},
+ {q:'Contoh hubungan yang tepat dalam rantai makanan adalah…',a:['Rumput → belalang → katak','Katak → rumput → matahari','Batu → rumput → ikan'],c:0,e:'Rumput dimakan belalang, lalu belalang dapat dimakan katak.'}
+ ];
+ }else{
+ bank=[
+ {q:`Apa tujuan utama mempelajari ${topic}?`,a:[`Memahami konsep ${topic}`,'Menghindari semua kegiatan belajar','Menghafal tanpa memahami'],c:0,e:`Tujuan pembelajaran adalah memahami konsep ${topic} sesuai materi.`},
+ {q:`Manakah tindakan yang menunjukkan pemahaman tentang ${topic}?`,a:['Menerapkan konsep dalam contoh sehari-hari','Mengabaikan penjelasan','Menebak tanpa alasan'],c:0,e:'Memahami konsep berarti dapat menghubungkannya dengan contoh nyata.'},
+ {q:`Mengapa kita perlu memahami ${topic}?`,a:['Agar dapat menggunakan pengetahuan dengan tepat','Agar tidak perlu belajar lagi','Agar selalu menjawab cepat'],c:0,e:'Pengetahuan membantu kita mengambil keputusan dan memecahkan masalah.'},
+ {q:`Saat mempelajari ${topic}, langkah yang baik adalah…`,a:['Mengamati, bertanya, dan mencoba','Langsung menyerah','Tidak membaca informasi'],c:0,e:'Mengamati dan mencoba membantu proses memahami materi.'},
+ {q:`Contoh penerapan ${topic} dalam kehidupan sehari-hari adalah…`,a:['Menggunakan pengetahuan untuk menyelesaikan masalah','Melupakan materi','Tidak melakukan apa pun'],c:0,e:'Ilmu akan lebih bermakna jika diterapkan dalam kehidupan.'}
+ ];
+ }
+ questions=bank; renderPreview(); renderEditor();
+}
+function renderPreview(){ $('questionsPreview').innerHTML=questions.map((q,i)=>`<div class="qeditor"><b>Soal ${i+1}:</b> ${escapeHtml(q.q)}<br><small>Kunci: ${'ABC'[q.c]} • ${escapeHtml(q.e)}</small></div>`).join('');}
+function renderEditor(){
+ $('editQuestions').innerHTML=questions.map((q,i)=>`<div class="qeditor" data-i="${i}">
+ <label>Soal ${i+1}</label><textarea class="question">${escapeHtml(q.q)}</textarea>
+ ${q.a.map((a,j)=>`<div class="optrow"><b>${'ABC'[j]}</b><input class="option" value="${escapeHtml(a)}"></div>`).join('')}
+ <label>Kunci Jawaban</label><select class="key">${q.a.map((a,j)=>`<option value="${j}" ${q.c===j?'selected':''}>${'ABC'[j]}</option>`).join('')}</select>
+ <label>Pembahasan</label><textarea class="explain">${escapeHtml(q.e)}</textarea>
+ <button class="danger delete" type="button">Hapus Soal</button></div>`).join('');
+ $('editQuestions').querySelectorAll('.qeditor').forEach((box,i)=>{
+ box.querySelector('.delete').onclick=()=>{questions.splice(i,1);renderEditor();renderPreview()};
+ });
+}
+function collectEditor(){
+ $('editQuestions').querySelectorAll('.qeditor').forEach((box,i)=>{if(!questions[i])return;
+ questions[i].q=box.querySelector('.question').value;
+ questions[i].a=[...box.querySelectorAll('.option')].map(x=>x.value);
+ questions[i].c=+box.querySelector('.key').value;
+ questions[i].e=box.querySelector('.explain').value;
+ });
+}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
+$('generate').onclick=()=>generateQuestions();
+$('tabAuto').onclick=()=>{collectEditor();$('tabAuto').classList.add('active');$('tabManual').classList.remove('active');$('autoPanel').style.display='block';$('manualPanel').style.display='none';renderPreview()};
+$('tabManual').onclick=()=>{$('tabManual').classList.add('active');$('tabAuto').classList.remove('active');$('autoPanel').style.display='none';$('manualPanel').style.display='block';renderEditor()};
+$('addQuestion').onclick=()=>{collectEditor();questions.push({q:'Tuliskan pertanyaan baru…',a:['Pilihan A','Pilihan B','Pilihan C'],c:0,e:'Pembahasan singkat.'});renderEditor()};
+$('soundSetup').onclick=()=>{soundOn=!soundOn;$('soundSetup').textContent=soundOn?'🔊 Suara: Aktif':'🔇 Suara: Mati'};
+generateQuestions();
+function audio(freq=440,dur=.12,type='square',end=0){if(!soundOn||muted)return;try{let ac=new(window.AudioContext||window.webkitAudioContext)(),o=ac.createOscillator(),g=ac.createGain();o.type=type;o.frequency.value=freq;if(end)o.frequency.exponentialRampToValueAtTime(end,ac.currentTime+dur);g.gain.setValueAtTime(.08,ac.currentTime);g.gain.exponentialRampToValueAtTime(.001,ac.currentTime+dur);o.connect(g);g.connect(ac.destination);o.start();o.stop(ac.currentTime+dur)}catch(e){}}
+function sfx(name){if(name==='jump')audio(300,.1,'square',600);if(name==='quiz')audio(500,.18,'square',800);if(name==='correct'){audio(650,.12);setTimeout(()=>audio(950,.18),100)}if(name==='wrong')audio(180,.25,'sawtooth',100);if(name==='coin')audio(1000,.08,'square',1400);if(name==='power')audio(400,.35,'triangle',900);if(name==='win'){audio(500,.15);setTimeout(()=>audio(700,.15),140);setTimeout(()=>audio(1000,.4),280)}if(name==='gameover')audio(200,.5,'triangle',70)}
+$('start').onclick=()=>{
+ collectEditor();if(questions.length===0){alert('Tambahkan minimal satu soal.');return}
+ $('setup').style.display='none';$('gameArea').style.display='block';$('certificate').style.display='none';
+ $('hudSubject').textContent=$('subject').value||'Petualangan Belajar';$('mission').textContent='🎯 Misi Belajar: '+$('objective').value;
+ score=0;answered=0;correct=0;initGame();gameStarted=true;requestAnimationFrame(loop);
+};
+$('mute').onclick=()=>{muted=!muted;$('mute').textContent=muted?'🔇 Unmute':'🔊 Mute'};
+$('restart').onclick=()=>{initGame();score=0;answered=0;correct=0;gameStarted=true;updateHud()};
+$('playAgain').onclick=()=>{$('certificate').style.display='none';$('gameArea').style.display='block';initGame();score=0;answered=0;correct=0;gameStarted=true;requestAnimationFrame(loop)};
+function initGame(){
+ player={x:80,y:GROUND-42,w:28,h:38,vx:0,vy:0,onGround:false,inv:0};
+ camera=0;platforms=[];qblocks=[];coins=[];enemies=[];pipes=[];particles=[];finishX=WORLD-120;
+ for(let x=300;x<WORLD-350;x+=500){platforms.push({x,y:GROUND-70,w:110,h:22});qblocks.push({x:x+140,y:GROUND-125,w:32,h:32,used:false,qi:(qblocks.length)%questions.length});qblocks.push({x:x+200,y:GROUND-125,w:32,h:32,used:false,qi:(qblocks.length+1)%questions.length});coins.push({x:x+165,y:GROUND-170,r:10,t:0});enemies.push({x:x+310,y:GROUND-28,w:30,h:28,vx:1.1,alive:true})}
+ pipes=[{x:650,w:60,h:90},{x:1300,w:70,h:125},{x:2050,w:80,h:100}];updateHud();
+}
+function updateHud(){$('score').textContent='⭐ Skor: '+score;$('progress').textContent='📘 Kuis: '+answered+'/'+questions.length}
+function loop(t){if(!gameStarted)return;let dt=Math.min((t-lastTime)/16.67||1,2);lastTime=t;if(!quizPaused)update(dt);draw();requestAnimationFrame(loop)}
+function update(dt){
+ player.vx=0;if(keys.left)player.vx=-3.4;if(keys.right)player.vx=3.4;
+ if(keys.jump&&player.onGround){player.vy=-10.8;player.onGround=false;keys.jump=false;sfx('jump')}
+ player.vy+=.48*dt;player.x+=player.vx*dt;player.y+=player.vy*dt;player.x=Math.max(0,Math.min(WORLD-player.w,player.x));
+ player.onGround=false;
+ if(player.y+player.h>=GROUND){player.y=GROUND-player.h;player.vy=0;player.onGround=true}
+ platforms.forEach(p=>{if(player.vy>=0&&player.x+player.w>p.x&&player.x<p.x+p.w&&player.y+player.h>=p.y&&player.y+player.h<=p.y+18){player.y=p.y-player.h;player.vy=0;player.onGround=true}});
+ qblocks.forEach(b=>{if(!b.used&&player.vy<0&&player.x+player.w>b.x&&player.x<b.x+b.w&&player.y<=b.y+b.h&&player.y>=b.y){player.y=b.y+b.h;player.vy=1;openQuiz(b)}});
+ coins.forEach(c=>{if(!c.got&&Math.abs(player.x+player.w/2-c.x)<24&&Math.abs(player.y+player.h/2-c.y)<24){c.got=true;score+=100;sfx('coin');burst(c.x,c.y,'gold')}});
+ enemies.forEach(e=>{if(!e.alive)return;e.x+=e.vx*dt;if(e.x<e.base||e.x>e.base+100)e.vx*=-1;if(!e.base)e.base=e.x;if(hit(player,e)){if(player.vy>1&&player.y+player.h-e.y<18){e.alive=false;player.vy=-7;score+=150;sfx('power')}else if(player.inv<=0){player.inv=70;score=Math.max(0,score-100);player.vx=player.x<e.x?-4:4;player.vy=-5}}});
+ pipes.forEach(p=>{if(hit(player,p)){if(player.x<p.x)player.x=p.x-player.w;else player.x=p.x+p.w}});
+ if(player.inv>0)player.inv-=dt;
+ particles.forEach(p=>{p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=.12*dt;p.life-=dt});particles=particles.filter(p=>p.life>0);
+ camera=Math.max(0,Math.min(WORLD-canvas.width,player.x-canvas.width*.35));
+ if(player.x>finishX){winGame()}
+}
+function hit(a,b){return a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y}
+function openQuiz(block){quizPaused=true;sfx('quiz');block.used=true;const q=questions[block.qi%questions.length];$('quizMeta').textContent=`Soal ${answered+1} • ${$('subject').value}`;$('quizQuestion').textContent=q.q;$('quizAnswers').innerHTML=q.a.map((a,i)=>`<button class="answer" data-i="${i}">${'ABC'[i]}. ${escapeHtml(a)}</button>`).join('');$('quizFeedback').innerHTML='';$('continue').style.display='none';$('quizModal').style.display='flex';$('quizAnswers').querySelectorAll('button').forEach(btn=>btn.onclick=()=>answer(+btn.dataset.i,q,block))}
+function answer(i,q,b){answered++;let ok=i===q.c;if(ok){correct++;score+=200;sfx('correct');burst(b.x+16,b.y,'gold');$('quizFeedback').innerHTML=`<div class="feedback">🎉 Benar! +200 poin. ${escapeHtml(q.e)}</div>`}else{sfx('wrong');$('quizFeedback').innerHTML=`<div class="feedback">💡 Belum tepat. Jawaban benar: <b>${'ABC'[q.c]}. ${escapeHtml(q.a[q.c])}</b><br>${escapeHtml(q.e)}</div>`}updateHud();$('quizAnswers').querySelectorAll('button').forEach(x=>x.disabled=true);$('continue').style.display='block';$('continue').onclick=()=>{$('quizModal').style.display='none';quizPaused=false;requestAnimationFrame(loop)}}
+function burst(x,y,color){for(let i=0;i<12;i++)particles.push({x,y,vx:(Math.random()-.5)*5,vy:-Math.random()*4,life:35,color})}
+function winGame(){gameStarted=false;sfx('win');$('gameArea').style.display='none';$('certificate').style.display='block';let pct=answered?Math.round(correct/answered*100):0;$('certText').innerHTML=`<p><b>Materi:</b> ${escapeHtml($('subject').value)}</p><p><b>Tujuan Pembelajaran:</b> ${escapeHtml($('objective').value)}</p><p><b>Soal dijawab:</b> ${answered} • <b>Benar:</b> ${correct}</p><p><b>Persentase benar:</b> ${pct}%</p><p><b>Total skor:</b> ⭐ ${score}</p><h3>${pct>=80?'🌟 Hebat! Pemahaman sangat baik!':pct>=60?'👏 Bagus! Terus berlatih!':'💪 Terus belajar, kamu pasti bisa!'}</h3>`}
+function draw(){
+ ctx.clearRect(0,0,canvas.width,canvas.height);ctx.save();ctx.translate(-camera,0);
+ // sky
+ ctx.fillStyle='#78c9f3';ctx.fillRect(camera,0,canvas.width,canvas.height);
+ for(let i=0;i<10;i++){let x=i*330+70;drawCloud(x,70+(i%3)*35)}
+ // hills
+ ctx.fillStyle='#6acb75';for(let x=0;x<WORLD;x+=260){ctx.beginPath();ctx.arc(x+100,GROUND+15,100,Math.PI,0);ctx.fill()}
+ // ground
+ ctx.fillStyle='#8b542c';ctx.fillRect(0,GROUND,WORLD,70);ctx.fillStyle='#4caf50';ctx.fillRect(0,GROUND,WORLD,12);ctx.fillStyle='#7fe36e';for(let x=0;x<WORLD;x+=24){ctx.fillRect(x,GROUND,12,5)}
+ platforms.forEach(p=>{ctx.fillStyle='#8b542c';ctx.fillRect(p.x,p.y,p.w,p.h);ctx.fillStyle='#c47a45';ctx.fillRect(p.x,p.y,p.w,5);for(let x=p.x+15;x<p.x+p.w;x+=35)ctx.strokeRect(x,p.y+7,25,12)});
+ pipes.forEach(p=>drawPipe(p));
+ qblocks.forEach(b=>drawQuestion(b));
+ coins.forEach(c=>{if(!c.got){c.t+=.1;ctx.fillStyle='#ffd43b';ctx.beginPath();ctx.ellipse(c.x,c.y,8+Math.sin(c.t)*3,12,0,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#fff1a6';ctx.stroke()}});
+ enemies.forEach(e=>{if(e.alive)drawEnemy(e)});
+ drawFlag();
+ drawPlayer();
+ particles.forEach(p=>{ctx.fillStyle=p.color;ctx.fillRect(p.x,p.y,5,5)});
+ ctx.restore();
+}
+function drawCloud(x,y){ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(x,y,24,0,Math.PI*2);ctx.arc(x+25,y-12,30,0,Math.PI*2);ctx.arc(x+55,y,23,0,Math.PI*2);ctx.fill()}
+function drawPipe(p){ctx.fillStyle='#087b30';ctx.fillRect(p.x,p.y,p.w,p.h);ctx.fillStyle='#17b83e';ctx.fillRect(p.x+8,p.y+8,p.w-16,p.h-8);ctx.fillStyle='#056321';ctx.fillRect(p.x-7,p.y,p.w+14,20);ctx.fillStyle='#25d34b';ctx.fillRect(p.x-4,p.y+3,p.w+8,8)}
+function drawQuestion(b){ctx.fillStyle=b.used?'#9b7b4d':'#ffbf32';ctx.fillRect(b.x,b.y,b.w,b.h);ctx.strokeStyle='#7d4a16';ctx.lineWidth=3;ctx.strokeRect(b.x,b.y,b.w,b.h);ctx.fillStyle=b.used?'#6e5a41':'#fff5b0';ctx.font='bold 24px monospace';ctx.fillText(b.used?'':'?',b.x+8,b.y+25);if(!b.used){ctx.fillStyle='#ffdf78';ctx.fillRect(b.x+3,b.y+3,5,5)}}
+function drawEnemy(e){ctx.fillStyle='#9b3b2c';ctx.fillRect(e.x,e.y,e.w,e.h);ctx.fillStyle='#e96b4e';ctx.fillRect(e.x+4,e.y+3,e.w-8,12);ctx.fillStyle='#fff';ctx.fillRect(e.x+5,e.y+9,5,6);ctx.fillRect(e.x+20,e.y+9,5,6);ctx.fillStyle='#111';ctx.fillRect(e.x+7,e.y+11,3,3);ctx.fillRect(e.x+22,e.y+11,3,3)}
+function drawPlayer(){if(player.inv>0&&Math.floor(player.inv/5)%2===0)return;let x=player.x,y=player.y;ctx.fillStyle='#d52b2b';ctx.fillRect(x+3,y,x+22-x,10);ctx.fillRect(x+1,y+6,26,5);ctx.fillStyle='#ffcc8a';ctx.fillRect(x+5,y+10,19,12);ctx.fillStyle='#1c5fb8';ctx.fillRect(x+3,y+22,23,13);ctx.fillStyle='#ed3232';ctx.fillRect(x+5,y+20,8,8);ctx.fillRect(x+17,y+20,8,8);ctx.fillStyle='#3c2b21';ctx.fillRect(x+5,y+34,8,4);ctx.fillRect(x+18,y+34,8,4);ctx.fillStyle='#111';ctx.fillRect(x+18,y+14,3,3)}
+function drawFlag(){ctx.fillStyle='#eee';ctx.fillRect(finishX,GROUND-190,6,190);ctx.fillStyle='#ff4545';ctx.beginPath();ctx.moveTo(finishX+6,GROUND-190);ctx.lineTo(finishX+70,GROUND-170);ctx.lineTo(finishX+6,GROUND-150);ctx.fill();ctx.fillStyle='#fff';ctx.fillRect(finishX-10,GROUND,26,10)}
+function updateHud(){}
+function setKey(k,v){keys[k]=v}
+window.addEventListener('keydown',e=>{if(['ArrowLeft','ArrowRight','ArrowUp',' ','a','d','A','D','w','W'].includes(e.key))e.preventDefault();if(e.key==='ArrowLeft'||e.key.toLowerCase()==='a')keys.left=true;if(e.key==='ArrowRight'||e.key.toLowerCase()==='d')keys.right=true;if(e.key===' '||e.key==='ArrowUp'||e.key.toLowerCase()==='w')keys.jump=true});
+window.addEventListener('keyup',e=>{if(e.key==='ArrowLeft'||e.key.toLowerCase()==='a')keys.left=false;if(e.key==='ArrowRight'||e.key.toLowerCase()==='d')keys.right=false;if(e.key===' '||e.key==='ArrowUp'||e.key.toLowerCase()==='w')keys.jump=false});
+function bindTouch(id,key){let b=$(id);b.addEventListener('pointerdown',e=>{e.preventDefault();keys[key]=true;b.setPointerCapture(e.pointerId)});['pointerup','pointercancel','lostpointercapture'].forEach(ev=>b.addEventListener(ev,()=>keys[key]=false))}
+bindTouch('left','left');bindTouch('right','right');bindTouch('jump','jump');
+</script>
+</body>
+</html>
